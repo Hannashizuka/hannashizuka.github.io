@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no">
+	<link href="https://fonts.googleapis.com/css2?family=Lato&display=swap" rel="stylesheet">
+	<style>
+		* {
+			margin:0;
+			padding:0;
+			box-sizing:border-box;
+		}
+		html {
+			user-select:none;
+		}
+		body {
+			font-family:sans-serif;
+			background-color:#dadada;
+		}
+		header {
+			position:sticky;
+			top:0;
+			left:0;
+			right:0;
+			width:100vw;
+			padding:1rem;
+			display:flex;
+			justify-content:space-between;
+			align-items:center;
+			color:#FF5C84;
+			background:linear-gradient(to right, #FFB6C1, #FFC0CB);
+			border-bottom:solid 1.5px #aaa;
+			z-index:99999;
+			& h1 {
+				font-size:1.4rem;
+			}
+		}
+		.content {
+			display:grid;
+			grid-gap:1rem;
+			padding:1rem;
+		}
+		.file-wrapper {
+			display:flex;
+			justify-content:center;
+			align-items:center;
+			& input {
+				background-color:#dfdfdf;
+				border-radius:3px;
+				box-shadow:0 0 4px 1px rgba(0,0,0,.6);
+				padding:1rem;
+				font-size:1.1rem;
+				font-weight:bold;
+				color:#555555;
+				transition:0.3s;
+				&:hover {
+					filter:saturate(2);
+					transition:0s;
+				}
+				&::-webkit-file-upload-button {
+					margin-right:1rem;
+					border:none;
+					padding:0.6rem;
+					color:#FF5C84;
+					background:linear-gradient(to right, #FFB6C1, #FFC0CB);
+					font-size:1rem;
+					font-weight:bold;
+					text-align:center;
+					border-radius:3px;
+					box-shadow:0 0 4px 1px rgba(0,0,0,.6);
+				}
+			}
+		}
+		#audioList {
+			display:grid;
+			grid-gap:0.8rem;
+			margin-bottom:2rem;
+		}
+		.audio-block {
+			color:#555555;
+			background-color:#dfdfdf;
+			border-radius:3px;
+			box-shadow:0 0 4px 1px rgba(0,0,0,.6);
+			padding:1rem;
+			& audio {
+				width:100%;
+			}
+		}
+		input[type=number] {
+			padding:0.2rem;
+			font-weight:bold;
+			color:#555;
+			border:solid 2px rgba(180,50,105,.5);
+			border-radius:3px;
+			transition:0.3s;
+			&:focus {
+				outline:none;
+				border-color:rgba(180,50,105,.8);
+			}
+		}
+		label {
+			display:block;
+			margin-top:1rem;
+			margin-bottom:0.2rem;
+			font-weight:bold;
+			color:#333333;
+		}
+		button {
+			border:none;
+			padding:0.8rem;
+			color:#FF5C84;
+			background:linear-gradient(to right, #FFB6C1, #FFC0CB);
+			font-size:1.1rem;
+			font-weight:bold;
+			text-align:center;
+			border-radius:3px;
+			box-shadow:0 0 4px 1px rgba(0,0,0,.6);
+			position:fixed;
+			bottom:1rem;
+			right:1rem;
+			transition:0.3s;
+			&:hover {
+				filter:saturate(2);
+				transition:0s;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<header>
+			<h1>Hannachan</h1>
+		</header>
+		<div class="content">
+			<div class="file-wrapper">
+				<input type="file" id="fileInput" accept="audio/*" multiple>
+			</div>
+			<div id="audioList">
+
+			</div>
+			<button onclick="saveAll()">Save Semua Audio</button>
+		</div>
+	</div>
+  <script>
+
+let adaPerubahan = true; // Atau ubah ini jadi true kalau user ngisi form, dll
+
+window.addEventListener("beforeunload", function (e) {
+  if (adaPerubahan) {
+    e.preventDefault();
+    e.returnValue = ''; // Diperlukan agar browser menampilkan peringatan default
+  }
+});
+
+    const fileInput = document.getElementById('fileInput');
+    const audioList = document.getElementById('audioList');
+    let audioItems = [];
+
+    fileInput.addEventListener('change', handleFiles);
+
+    function handleFiles() {
+      audioList.innerHTML = '';
+      audioItems = [];
+
+      Array.from(fileInput.files).forEach((file) => {
+        const url = URL.createObjectURL(file);
+        const audio = new Audio(url);
+        audio.controls = true;
+
+        const block = document.createElement('div');
+        block.className = 'audio-block';
+
+        const label = document.createElement('label');
+        label.textContent = `${file.name}:`;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        // input.value = '150'; // default
+
+        const speedLabel = document.createElement('span');
+
+        const updateSpeed = () => {
+          const speed = parseFloat(calculateSpeed(input.value));
+          if (!isNaN(speed)) {
+            audio.playbackRate = speed;
+            speedLabel.textContent = ` x${speed}`;
+          } else {
+            speedLabel.textContent = `Angka tidak valid!`;
+          }
+        };
+
+        input.addEventListener('input', updateSpeed);
+
+        block.appendChild(audio);
+        block.appendChild(label);
+        block.appendChild(input);
+        block.appendChild(speedLabel);
+        audioList.appendChild(block);
+
+        audioItems.push({ file, audio, input });
+
+        updateSpeed(); // Set awal
+      });
+    }
+
+    function calculateSpeed(value) {
+      const input = parseFloat(value);
+      if (isNaN(input) || input === 0) return 1.0;
+      const offset = 1 - (120 / input);
+      return (1.0 - offset).toFixed(4);  // hasil akhir = 120 / input
+    }
+
+    async function saveAll() {
+      for (const item of audioItems) {
+        const speed = parseFloat(calculateSpeed(item.input.value));
+        const arrayBuffer = await item.file.arrayBuffer();
+        const audioContext = new AudioContext();
+        const buffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        const newDuration = buffer.duration / (speed || 1);
+        const offlineCtx = new OfflineAudioContext(
+          buffer.numberOfChannels,
+          audioContext.sampleRate * newDuration,
+          audioContext.sampleRate
+        );
+
+        const source = offlineCtx.createBufferSource();
+        source.buffer = buffer;
+        source.playbackRate.value = speed || 1;
+        source.connect(offlineCtx.destination);
+        source.start(0);
+
+        const renderedBuffer = await offlineCtx.startRendering();
+        const wavBlob = bufferToWav(renderedBuffer);
+        const url = URL.createObjectURL(wavBlob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${item.file.name.replace(/\.[^/.]+$/, "")}_x${speed}.wav`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    }
+
+    function bufferToWav(buffer) {
+      const numOfChan = buffer.numberOfChannels;
+      const length = buffer.length * numOfChan * 2 + 44;
+      const bufferArray = new ArrayBuffer(length);
+      const view = new DataView(bufferArray);
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      let offset = 0;
+      writeString(view, offset, 'RIFF'); offset += 4;
+      view.setUint32(offset, length - 8, true); offset += 4;
+      writeString(view, offset, 'WAVE'); offset += 4;
+      writeString(view, offset, 'fmt '); offset += 4;
+      view.setUint32(offset, 16, true); offset += 4;
+      view.setUint16(offset, 1, true); offset += 2;
+      view.setUint16(offset, numOfChan, true); offset += 2;
+      view.setUint32(offset, buffer.sampleRate, true); offset += 4;
+      view.setUint32(offset, buffer.sampleRate * numOfChan * 2, true); offset += 4;
+      view.setUint16(offset, numOfChan * 2, true); offset += 2;
+      view.setUint16(offset, 16, true); offset += 2;
+      writeString(view, offset, 'data'); offset += 4;
+      view.setUint32(offset, length - offset - 4, true); offset += 4;
+
+      for (let i = 0; i < buffer.length; i++) {
+        for (let ch = 0; ch < numOfChan; ch++) {
+          let sample = buffer.getChannelData(ch)[i];
+          sample = Math.max(-1, Math.min(1, sample));
+          view.setInt16(offset, sample * 0x7FFF, true);
+          offset += 2;
+        }
+      }
+
+      return new Blob([view], { type: 'audio/wav' });
+    }
+  </script>
+
+</body>
+</html>
